@@ -5,5 +5,3 @@
 5. testfiles 폴더 내의 파일 업로드 
 6. testfile 시간에 맞게 모델 선택 후 submit
 7. result 파일 확인
-
-* denormalization 수정 필요
