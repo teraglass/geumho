@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, abort, send_file, redirect, jsonify, Response
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
+from tensorflow import keras
 import pandas as pd
 import numpy as np
 import os
@@ -11,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 app = Flask(__name__)
 
-data = pd.read_csv('./data_set_new.csv',date_parser = True)
+data = pd.read_csv('geumho_dataset.csv', date_parser = True)
 scaler = MinMaxScaler()
 model_path = "./models"
 
@@ -51,10 +52,9 @@ def predict():
         # make dataset of training
         data_training_drop = data_training.iloc[:,
                              [1, 2, 3, 4, 5, 6, 7, column_lead_time]]  # 8 : 0.5시간예측  9 : 1시간예측  10: 3시간 예측  11 : 6시간예측
-        data_test_drop = data_test.iloc[:, [1, 2, 3, 4, 5, 6, 7, column_lead_time]]
 
         # data normalize of training data
-        scaler.fit_transform(data_training_drop)
+        data_training_scale = scaler.fit_transform(data_training_drop)
 
         # calculate predict Y
         model = tf.keras.models.load_model(os.path.join(model_path, lead_time))
@@ -64,14 +64,14 @@ def predict():
             file_bytes = file.read()
             df = pd.read_csv(io.BytesIO(file_bytes),
                              infer_datetime_format=True, header=None)
-            y_test = normalize_series(df)
-            y_test = np.array(y_test).reshape(-1, 24, 7)
-            y_pred = model.predict(y_test)
-            dn = denormalize_series(y_pred)
+            y_test = scaler.transform(df)
+            y_test = np.array(y_test).reshape(-1, 24, 8)
+            y_pred = model.predict(y_test[:,:,:-1])
+            dn = y_pred*scaler.data_range_[-1]+scaler.data_min_[-1]
             dn = dn.flatten().reshape(-1, 1)
             dn = pd.DataFrame(dn)
             output_stream = io.StringIO()
-            dn.to_csv(output_stream)
+            dn.to_csv(output_stream, index=False, header=False)
             response = Response(
                 output_stream.getvalue(),
                 mimetype='text/csv',
@@ -83,14 +83,6 @@ def predict():
     else:
         return redirect("/")
 
-def normalize_series(y_test):
-    global scaler
-    y_test = (y_test - scaler.data_min_[-1]) / scaler.data_range_[-1]
-    return y_test
 
-def denormalize_series(y_pred):
-    global scaler
-    y_pred = y_pred * scaler.data_range_[-1] + scaler.data_min_[-1]
-    return y_pred
 if __name__ == '__main__':
     app.run()
