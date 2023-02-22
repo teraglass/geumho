@@ -1,5 +1,5 @@
 1. git clone 
-2. pip install -r requirements.txt
+2. $ pip install -r requirements.txt
 3. app.py run
 4. localhost:5000 접속
 5. geumho_test_10set.csv 업로드 
